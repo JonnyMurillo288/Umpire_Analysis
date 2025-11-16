@@ -1,0 +1,7 @@
+dash==2.14.2
+dash-table==5.0.0
+pandas==2.1.1
+plotly==5.18.0
+SQLAlchemy==2.0.23
+pymysql==1.1.0
+gunicorn==21.2.0
