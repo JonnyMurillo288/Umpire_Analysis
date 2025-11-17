@@ -4,100 +4,49 @@ from dash.dependencies import Input, Output, State
 from dash.exceptions import PreventUpdate
 import plotly.express as px
 import pandas as pd
-# from sqlalchemy import create_engine
-server = app.server   # <= MUST be here, outside main
-# --------------------------------------------------
-# Load DB Path + Connect
-# --------------------------------------------------
-# with open('database_path.txt', 'r') as file:
-#     path = file.read().replace('\n', '')
-
-# engine = create_engine(path)
-
-# # --------------------------------------------------
-# # Load main Bar Plot dataset
-# # --------------------------------------------------
-# query = """
-# SELECT 
-#     avg_factor_year,
-#     num_games,
-#     team,
-#     year
-# FROM avg_factor_team_season;
-# """
-
-# df = pd.read_sql(query, engine)
-# df["year_str"] = df["year"].astype(str)
-
-# teams = sorted(df["team"].unique())
-# years = sorted(df["year"].unique())
-
-# # --------------------------------------------------
-# # Load Umpire Favor Table
-# # --------------------------------------------------
-# ump_query = """
-# SELECT umpire, favor_by_ump_sum, num_games, team
-# FROM ump_favor_by_team;
-# """
-
-# ump_all = pd.read_sql(ump_query, engine)
-# ump_all["temp_team"] = ump_all["team"]
-
-# # Make ALL TEAMS entry
-# worst_all = ump_all.sort_values("favor_by_ump_sum", ascending=True)
-# worst_all["temp_team"] = worst_all["team"]
-# worst_all["team"] = "ALL TEAMS"
-# worst_all = worst_all[ump_all.columns]
-
-# ump_df = pd.concat([ump_all, worst_all], ignore_index=True)
-
 
 # -------------------------------------------------
-# READ IN DIRECTLY THE CSV
+# READ CSVs
 # -------------------------------------------------
-
 df = pd.read_csv("avg_factor_team_season.csv")
-ump_df = pd.read_csv('ump_df.csv')
+ump_df = pd.read_csv("ump_df.csv")
 
 df["year_str"] = df["year"].astype(str)
 
 teams = sorted(df["team"].unique())
 years = sorted(df["year"].unique())
 
-
 # --------------------------------------------------
-# DASH APP
+# DASH APP (must come before server declaration)
 # --------------------------------------------------
 app = dash.Dash(__name__)
+server = app.server   # REQUIRED for Render/Gunicorn
 
+
+# --------------------------------------------------
+# LAYOUT
+# --------------------------------------------------
 app.layout = html.Div([
 
     html.H1("Umpire Favor Factor per Team"),
 
-    # --------------------------------------------------
-    # Year Filter
-    # --------------------------------------------------
+    # Year filter
     html.Div([
         html.Label("Select Years:"),
         dcc.Dropdown(
             id="year-filter",
             options=[{"label": str(y), "value": y} for y in years],
-            value=years,  # all selected initially
+            value=years,
             multi=True,
             style={"width": "40%"}
         )
     ], style={"padding": "10px"}),
 
-    # --------------------------------------------------
-    # BAR PLOT
-    # --------------------------------------------------
     dcc.Graph(id="bar-plot"),
 
-    # --------------------------------------------------
-    # Sort Direction
-    # --------------------------------------------------
     html.H2(id="ump-title"),
 
+    # Sort direction
     html.Div([
         html.Label("Sort by:"),
         dcc.RadioItems(
@@ -112,9 +61,7 @@ app.layout = html.Div([
         )
     ], style={"padding": "10px"}),
 
-    # --------------------------------------------------
-    # Team Selector for Ump Table
-    # --------------------------------------------------
+    # Team dropdown
     html.Div([
         html.Label("Select Team for Umpire Table:"),
         dcc.Dropdown(
@@ -127,9 +74,6 @@ app.layout = html.Div([
         )
     ], style={"padding": "10px"}),
 
-    # --------------------------------------------------
-    # Load More Button
-    # --------------------------------------------------
     html.Button(
         "Load More",
         id="load-more-btn",
@@ -139,9 +83,6 @@ app.layout = html.Div([
 
     dcc.Store(id="ump-row-limit", data=10),
 
-    # --------------------------------------------------
-    # Ump Table
-    # --------------------------------------------------
     dash_table.DataTable(
         id="ump-table",
         columns=[],
@@ -154,7 +95,7 @@ app.layout = html.Div([
 
 
 # --------------------------------------------------
-# CALLBACK: BAR PLOT (updated for year filtering)
+# CALLBACK: BAR PLOT
 # --------------------------------------------------
 @app.callback(
     Output("bar-plot", "figure"),
@@ -166,10 +107,8 @@ def update_bar(sort_dir, selected_years):
     if not selected_years:
         return px.bar(title="No years selected")
 
-    # Filter df to selected years
     dff = df[df["year"].isin(selected_years)].copy()
 
-    # Recalculate totals based only on selected years
     totals_all = (
         dff.groupby("team")["sum_factor_year"]
         .sum()
@@ -182,7 +121,6 @@ def update_bar(sort_dir, selected_years):
     team_order = dff2["team"].unique().tolist()
     year_order = sorted([str(y) for y in selected_years])
 
-    # Positive-only annotation position
     pos_heights = (
         dff[dff["sum_factor_year"] > 0]
         .groupby("team")["sum_factor_year"]
@@ -200,13 +138,10 @@ def update_bar(sort_dir, selected_years):
         color="year_str",
         title="Cumulative Favor Factor per Team (Filtered)",
         color_discrete_sequence=px.colors.sequential.Turbo_r[4:15],
-        category_orders={
-            "team": team_order,
-            "year_str": year_order
-        }
+        category_orders={"team": team_order, "year_str": year_order}
     )
 
-    # Add annotations
+    # Annotate totals at top of positive bars
     for _, row in totals.iterrows():
         fig.add_annotation(
             x=row["team"],
@@ -216,8 +151,8 @@ def update_bar(sort_dir, selected_years):
             yshift=8,
             font=dict(size=13, color="black")
         )
-    fig.update_yaxes(rangemode="tozero")
 
+    fig.update_yaxes(rangemode="tozero")
     fig.add_hline(y=0, line_width=3, line_color="black")
 
     fig.update_layout(
@@ -229,16 +164,13 @@ def update_bar(sort_dir, selected_years):
         xaxis_tickangle=-45
     )
 
-    fig.update_traces(
-        marker=dict(line=dict(width=0.5, color="black")),
-        opacity=0.95
-    )
+    fig.update_traces(marker=dict(line=dict(width=0.5, color="black")), opacity=0.95)
 
-    return fig 
+    return fig
 
 
 # --------------------------------------------------
-# CALLBACK: Row Limit (Load More)
+# CALLBACK: Row limit (Load More)
 # --------------------------------------------------
 @app.callback(
     Output("ump-row-limit", "data"),
@@ -286,10 +218,8 @@ def update_umpire_table(selected_team, row_limit, sort_dir):
     ascending = (sort_dir == "ASC")
     dff = dff.sort_values("favor_by_ump_sum", ascending=ascending)
 
-    # Title emoji
     title = "😠" if sort_dir == "ASC" else "☺️"
 
-    # ALL TEAMS includes temp_team column 
     if selected_team == "ALL TEAMS":
         columns = [
             {"name": "Umpire", "id": "umpire"},
@@ -298,7 +228,6 @@ def update_umpire_table(selected_team, row_limit, sort_dir):
             {"name": "Games", "id": "num_games"}
         ]
         dff = dff[["umpire", "temp_team", "favor_by_ump_sum", "num_games"]]
-
     else:
         columns = [
             {"name": "Umpire", "id": "umpire"},
@@ -313,7 +242,7 @@ def update_umpire_table(selected_team, row_limit, sort_dir):
 
 
 # --------------------------------------------------
-# RUN APP 
+# LOCAL RUN
 # --------------------------------------------------
 if __name__ == "__main__":
     app.run(debug=True)
