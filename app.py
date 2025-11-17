@@ -5,7 +5,7 @@ from dash.exceptions import PreventUpdate
 import plotly.express as px
 import pandas as pd
 # from sqlalchemy import create_engine
-
+server = app.server   # <= MUST be here, outside main
 # --------------------------------------------------
 # Load DB Path + Connect
 # --------------------------------------------------
@@ -317,4 +317,3 @@ def update_umpire_table(selected_team, row_limit, sort_dir):
 # --------------------------------------------------
 if __name__ == "__main__":
     app.run(debug=True)
-    server = app.server   # <= this line MUST exist
