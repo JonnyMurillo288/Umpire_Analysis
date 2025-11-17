@@ -64,6 +64,7 @@ df["year_str"] = df["year"].astype(str)
 teams = sorted(df["team"].unique())
 years = sorted(df["year"].unique())
 
+
 # --------------------------------------------------
 # DASH APP
 # --------------------------------------------------
@@ -170,10 +171,10 @@ def update_bar(sort_dir, selected_years):
 
     # Recalculate totals based only on selected years
     totals_all = (
-        dff.groupby("team")["avg_factor_year"]
+        dff.groupby("team")["sum_factor_year"]
         .sum()
         .reset_index()
-        .rename(columns={"avg_factor_year": "total"})
+        .rename(columns={"sum_factor_year": "total"})
     )
 
     dff2 = dff.merge(totals_all, on="team").sort_values("total", ascending=False)
@@ -183,11 +184,11 @@ def update_bar(sort_dir, selected_years):
 
     # Positive-only annotation position
     pos_heights = (
-        dff[dff["avg_factor_year"] > 0]
-        .groupby("team")["avg_factor_year"]
+        dff[dff["sum_factor_year"] > 0]
+        .groupby("team")["sum_factor_year"]
         .sum()
         .reset_index()
-        .rename(columns={"avg_factor_year": "position"})
+        .rename(columns={"sum_factor_year": "position"})
     )
 
     totals = totals_all.merge(pos_heights, on="team", how="left").fillna(0)
@@ -195,9 +196,9 @@ def update_bar(sort_dir, selected_years):
     fig = px.bar(
         dff2,
         x="team",
-        y="avg_factor_year",
+        y="sum_factor_year",
         color="year_str",
-        title="Average Favor Factor per Team (Filtered)",
+        title="Cumulative Favor Factor per Team (Filtered)",
         color_discrete_sequence=px.colors.sequential.Turbo_r[4:15],
         category_orders={
             "team": team_order,
@@ -215,12 +216,13 @@ def update_bar(sort_dir, selected_years):
             yshift=8,
             font=dict(size=13, color="black")
         )
+    fig.update_yaxes(rangemode="tozero")
 
     fig.add_hline(y=0, line_width=3, line_color="black")
 
     fig.update_layout(
         xaxis_title="Team",
-        yaxis_title="Average Umpire Favor Factor",
+        yaxis_title="Cumulative Umpire Favor Factor",
         font=dict(size=16),
         legend_title_text="Year",
         margin=dict(l=80, r=40, t=90, b=80),
@@ -232,7 +234,7 @@ def update_bar(sort_dir, selected_years):
         opacity=0.95
     )
 
-    return fig
+    return fig 
 
 
 # --------------------------------------------------
@@ -287,7 +289,7 @@ def update_umpire_table(selected_team, row_limit, sort_dir):
     # Title emoji
     title = "😠" if sort_dir == "ASC" else "☺️"
 
-    # ALL TEAMS includes temp_team column
+    # ALL TEAMS includes temp_team column 
     if selected_team == "ALL TEAMS":
         columns = [
             {"name": "Umpire", "id": "umpire"},
@@ -311,7 +313,7 @@ def update_umpire_table(selected_team, row_limit, sort_dir):
 
 
 # --------------------------------------------------
-# RUN APP
+# RUN APP 
 # --------------------------------------------------
 if __name__ == "__main__":
     app.run(debug=True)
