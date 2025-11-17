@@ -59,6 +59,11 @@ import pandas as pd
 df = pd.read_csv("avg_factor_team_season.csv")
 ump_df = pd.read_csv('ump_df.csv')
 
+df["year_str"] = df["year"].astype(str)
+
+teams = sorted(df["team"].unique())
+years = sorted(df["year"].unique())
+
 # --------------------------------------------------
 # DASH APP
 # --------------------------------------------------
