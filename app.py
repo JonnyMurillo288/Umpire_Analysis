@@ -317,3 +317,4 @@ def update_umpire_table(selected_team, row_limit, sort_dir):
 # --------------------------------------------------
 if __name__ == "__main__":
     app.run(debug=True)
+    server = app.server   # <= this line MUST exist
